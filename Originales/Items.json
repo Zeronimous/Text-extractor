@@ -1,0 +1,22 @@
+[
+  null,
+  {
+    "id": 1,
+    "name": "Potion",
+    "description": "Restores a small amount of HP.",
+    "itypeId": 1,
+    "price": 50,
+    "consumable": true
+  },
+  {
+    "id": 2,
+    "name": "Magic Sword",
+    "description": "A sword imbued with ancient magic. It has the inscription \"Power\".",
+    "note": "This should not be extracted."
+  },
+  {
+    "id": 3,
+    "name": "",
+    "description": "An item with no name."
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "displayName": "Test Map",
+  "events": [
+    null,
+    {
+      "id": 1,
+      "name": "EV001",
+      "pages": [
+        {
+          "conditions": {},
+          "list": [
+            {"code": 101, "indent": 0, "parameters": ["", 0, 0, 2, "Actor1Face", "This is a text with a face."]},
+            {"code": 401, "indent": 0, "parameters": ["Hello, world! This is the first line."]},
+            {"code": 401, "indent": 0, "parameters": ["This is a special code: \\C[1]Red\\C[0]!"]},
+            {"code": 102, "indent": 0, "parameters": [["Choice1", "Choice2", "CancelChoice", "Fourth"], 2, 2, 0, 0]},
+            {"code": 0, "indent": 0, "parameters": []}
+          ]
+        }
+      ],
+      "x": 5,
+      "y": 5
+    },
+    {
+      "id": 2,
+      "name": "EV002",
+      "pages": [
+        {
+          "conditions": {},
+          "list": [
+            {"code": 105, "indent": 0, "parameters": ["This is a scrolling text that goes on and on...", 1]},
+            {"code": 0, "indent": 0, "parameters": []}
+          ]
+        }
+      ],
+      "x": 10,
+      "y": 10
+    }
+  ]
+}
