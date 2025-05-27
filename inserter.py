@@ -115,8 +115,8 @@ def insert_texts():
 
     modified_json_data = {} # To store loaded and modified JSONs
 
-    # Regex to parse lines like "1) Translated text" or "123) Some other text"
-    line_parser = re.compile(r"^\s*(\d+)\)\s*(.*)", re.UNICODE)
+    # Regex to parse lines like "[linea1] Translated text" or "[linea123] Some other text"
+    line_parser = re.compile(r"^\s*\[linea(\d+)\]\s*(.*)", re.UNICODE)
 
     for text_filename_in_textos_dir in os.listdir(TEXTOS_DIR):
         if not text_filename_in_textos_dir.endswith(".txt") or text_filename_in_textos_dir == "extraction_manifest.json":
