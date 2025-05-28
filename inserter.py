@@ -115,8 +115,8 @@ def insert_texts():
 
     modified_json_data = {} # To store loaded and modified JSONs
 
-    # Regex is no longer needed for tab-separated format.
-    # line_parser = re.compile(r"^\s*\[linea(\d+)\]\s*(.*)", re.UNICODE) # Old regex
+    # Define the regex for the new format "LINEA_X: Text |"
+    line_parser_new_format = re.compile(r"^LINEA_(\d+): (.*?) \|$", re.UNICODE)
 
     for text_filename_in_textos_dir in os.listdir(TEXTOS_DIR):
         if not text_filename_in_textos_dir.endswith(".txt") or text_filename_in_textos_dir == "extraction_manifest.json":
@@ -128,42 +128,30 @@ def insert_texts():
 
         try:
             with open(translated_txt_filepath, 'r', encoding='utf-8') as txt_file:
-                first_line_skipped = False
                 for line_number_in_file, line_content in enumerate(txt_file, 1): # file line numbers are 1-based
-                    line_content = line_content.rstrip('\n') 
+                    line_content = line_content.strip() # Strip leading/trailing whitespace, including newline
 
-                    if not first_line_skipped:
-                        if line_content == "code\ttext":
-                            first_line_skipped = True
-                            continue
-                        else:
-                            # Optional: Warn if the first line is not the expected header
-                            print(f"Warning: Expected header 'code\\ttext' not found in {text_filename_in_textos_dir}. Assuming no header and processing all lines as data.")
-                            # Proceed to process this line as data, in case there's no header
-                            first_line_skipped = True # Still set to true to avoid re-checking header
+                    if not line_content: # Skip empty lines
+                        continue
 
-                    parts = line_content.split('\t', 1)
-                    if len(parts) == 2:
-                        code_str = parts[0]
-                        translated_text = parts[1]
+                    match = line_parser_new_format.match(line_content)
+                    if match:
+                        code_str = match.group(1)
+                        translated_text = match.group(2) # Content between "LINEA_X: " and " |"
                         try:
                             parsed_id_from_line = int(code_str)
                         except ValueError:
                             print(f"Warning: Could not parse code '{code_str}' as a number in line {line_number_in_file} of {text_filename_in_textos_dir}: '{line_content[:50]}...'. Skipping.")
                             continue
                     else:
-                        # Handle lines that are not in the expected format "code\ttext"
-                        # This could be empty lines or lines with just text after translation
-                        if line_content.strip() == "": # Skip empty lines silently
-                            continue
-                        print(f"Warning: Line {line_number_in_file} in {text_filename_in_textos_dir} is not in 'code\\ttext' format: '{line_content[:50]}...'. Skipping.")
+                        print(f"Warning: Line {line_number_in_file} in {text_filename_in_textos_dir} does not match 'LINEA_X: Text |' format: '{line_content[:50]}...'. Skipping.")
                         continue
                     
                     # Construct manifest key (e.g., Map001.txt#1)
                     manifest_key = f"{text_filename_in_textos_dir}#{parsed_id_from_line}"
 
                     if manifest_key not in manifest_data:
-                        print(f"Warning: Key '{manifest_key}' not found in manifest. Skipping line {line_number_in_file} ('{parsed_id_from_line}) ...') from {text_filename_in_textos_dir}.")
+                        print(f"Warning: Key '{manifest_key}' not found in manifest. Skipping line {line_number_in_file} ('LINEA_{parsed_id_from_line}: ...') from {text_filename_in_textos_dir}.")
                         continue
 
                     entry = manifest_data[manifest_key]
