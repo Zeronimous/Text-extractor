@@ -1,7 +1,6 @@
 import os
 import json
 import copy
-# import re # No longer needed for this version
 
 # Define constants for folder names
 ORIGINALES_DIR = "Originales"
@@ -11,8 +10,6 @@ TRADUCIDOS_DIR = "Traducidos"
 def set_value_at_path(data_obj, path_list, value):
     """
     Sets a value in a nested dictionary/list structure using a list of path segments.
-    Example: path_list = ['events', 0, 'list', 5, 'parameters', 0]
-    Returns True on success, False on failure.
     """
     current = data_obj
     for i, key_or_index in enumerate(path_list):
@@ -24,10 +21,11 @@ def set_value_at_path(data_obj, path_list, value):
                 else:
                     print(f"Error: Index {key_or_index} out of bounds for list segment in path {' -> '.join(map(str,path_list))}")
                     return False
-            elif isinstance(current, dict) and key_or_index in current:
+            elif isinstance(current, dict) and (key_or_index in current or isinstance(key_or_index, str)):
+                # Allow setting if key exists or if it's a string key (implying it can be created/replaced)
                 current[key_or_index] = value
                 return True
-            else: # Path implies creation or type mismatch at target
+            else:
                 print(f"Error: Invalid path or type mismatch at final segment '{key_or_index}' for path {' -> '.join(map(str,path_list))}. Cannot set value.")
                 return False
         else: # Navigate deeper
@@ -42,12 +40,11 @@ def set_value_at_path(data_obj, path_list, value):
             else:
                 print(f"Error: Could not navigate path at segment '{key_or_index}' for path {' -> '.join(map(str,path_list))}")
                 return False
-    return False # Should be unreachable if path_list is not empty.
+    return False
 
 def parse_json_path(path_str):
     """
-    Parses a JSON path string (e.g., "events[0].list[5].parameters[0]" or "name")
-    into a list of keys/indices (e.g., ['events', 0, 'list', 5, 'parameters', 0]).
+    Parses a JSON path string into a list of keys/indices.
     """
     parts = []
     current_segment = ""
@@ -66,7 +63,7 @@ def parse_json_path(path_str):
             if index_str.isdigit():
                 parts.append(int(index_str))
             else:
-                parts.append(index_str) # Should ideally not happen with this project's paths
+                parts.append(index_str)
             i = idx_close_bracket
         elif char == '.':
             if current_segment:
@@ -79,34 +76,34 @@ def parse_json_path(path_str):
         parts.append(current_segment)
     return parts
 
-def insert_texts():
+def insert_items(): # Renamed from insert_texts
     """
-    Main function to insert translated texts from extracted_texts.json
-    back into new JSON files in TRADUCIDOS_DIR, using extraction_manifest.json.
+    Main function to insert translated items (objects or strings)
+    from extracted_text_objects.json back into new JSON files.
     """
-    print("Starting text insertion process...")
+    print("Starting item insertion process...")
 
     if not os.path.exists(TRADUCIDOS_DIR):
         os.makedirs(TRADUCIDOS_DIR)
         print(f"Created directory: {TRADUCIDOS_DIR}")
 
-    # Load translated texts
-    translated_texts_path = os.path.join(TEXTOS_DIR, "extracted_texts.json")
+    # Load translated items
+    translated_items_path = os.path.join(TEXTOS_DIR, "extracted_text_objects.json")
     try:
-        with open(translated_texts_path, 'r', encoding='utf-8') as f:
-            translated_texts_array = json.load(f)
-        if not isinstance(translated_texts_array, list):
-            print(f"Error: Content of {translated_texts_path} is not a JSON list. Exiting.")
+        with open(translated_items_path, 'r', encoding='utf-8') as f:
+            translated_items_array = json.load(f)
+        if not isinstance(translated_items_array, list):
+            print(f"Error: Content of {translated_items_path} is not a JSON list. Exiting.")
             return
-        print(f"Successfully loaded translated texts from {translated_texts_path}.")
+        print(f"Successfully loaded translated items from {translated_items_path}.")
     except FileNotFoundError:
-        print(f"Error: Translated texts file not found at {translated_texts_path}. Exiting.")
+        print(f"Error: Translated items file not found at {translated_items_path}. Exiting.")
         return
     except json.JSONDecodeError:
-        print(f"Error: Could not decode JSON from {translated_texts_path}. Exiting.")
+        print(f"Error: Could not decode JSON from {translated_items_path}. Exiting.")
         return
     except IOError:
-        print(f"Error: Could not read file {translated_texts_path}. Exiting.")
+        print(f"Error: Could not read file {translated_items_path}. Exiting.")
         return
 
     # Load manifest
@@ -128,62 +125,62 @@ def insert_texts():
         print(f"Error: Could not read manifest file {manifest_path}. Exiting.")
         return
 
-    # Optional: Length check
-    num_texts = len(translated_texts_array)
+    num_items = len(translated_items_array)
     num_manifest_entries = len(manifest_data)
-    if num_texts != num_manifest_entries:
-        print(f"Warning: Number of translated texts ({num_texts}) does not match number of manifest entries ({num_manifest_entries}). Proceeding with {num_texts} texts.")
+    if num_items != num_manifest_entries:
+        print(f"Warning: Number of translated items ({num_items}) does not match number of manifest entries ({num_manifest_entries}). Processing based on {num_items} items in the array.")
     
-    if num_texts == 0:
-        print("No texts found in extracted_texts.json. Nothing to insert.")
+    if num_items == 0:
+        print("No items found in extracted_text_objects.json. Nothing to insert.")
         return
 
-    modified_json_data = {} # To store loaded and modified JSONs (deep copies)
+    modified_json_data = {}
 
-    for i in range(num_texts):
-        current_translated_text = translated_texts_array[i]
-        manifest_key_str = str(i) # Manifest keys are stringified indices
+    for i in range(num_items):
+        current_translated_item = translated_items_array[i]
+        manifest_key_str = str(i)
 
         manifest_entry = manifest_data.get(manifest_key_str)
         if manifest_entry is None:
-            print(f"Warning: No manifest entry for index {i}. Skipping this text.")
+            print(f"Warning: No manifest entry for index {i}. Skipping this item.")
             continue
 
+        item_type = manifest_entry.get("type")
         original_json_filename = manifest_entry.get("original_file")
         json_path_str = manifest_entry.get("json_path")
 
-        if not original_json_filename or not json_path_str:
-            print(f"Warning: Incomplete manifest entry for index {i} (Key: '{manifest_key_str}'). Missing original_file or json_path. Skipping.")
+        if not all([item_type, original_json_filename, json_path_str]):
+            print(f"Warning: Incomplete manifest entry for index {i} (Key: '{manifest_key_str}'). Missing type, original_file, or json_path. Skipping.")
             continue
         
-        print(f"\nProcessing entry {i}: File '{original_json_filename}', Path '{json_path_str}'")
+        print(f"\nProcessing entry {i}: Type '{item_type}', File '{original_json_filename}', Path '{json_path_str}'")
 
-        # Load original JSON if not already loaded, using deepcopy
+        if item_type not in ("event_command_object", "event_command_object_cancel_choice", "string_value"):
+            print(f"Warning: Unknown item type '{item_type}' for index {i}. Skipping.")
+            continue
+
+        # Load original JSON if not already loaded
         if original_json_filename not in modified_json_data:
             original_json_full_path = os.path.join(ORIGINALES_DIR, original_json_filename)
             if not os.path.exists(original_json_full_path):
-                print(f"Warning: Original JSON file '{original_json_full_path}' not found for manifest entry {i}. Skipping.")
+                print(f"Warning: Original JSON file '{original_json_full_path}' not found for manifest entry {i}. Skipping further entries for this file.")
+                # To prevent repeated attempts for a missing file, we can mark it as "processed" or skip all related.
+                # For simplicity, we'll just skip this entry and subsequent ones might also fail if they are for the same missing file.
                 continue
             try:
                 with open(original_json_full_path, 'r', encoding='utf-8') as oj_file:
-                    # Using object_pairs_hook for deepcopy during load might be complex.
-                    # Simpler to load then deepcopy the entire structure if it's the first time.
                     loaded_data = json.load(oj_file)
                     modified_json_data[original_json_filename] = copy.deepcopy(loaded_data)
                 print(f"Loaded and deepcopied original JSON: {original_json_full_path}")
             except json.JSONDecodeError:
                 print(f"Warning: Could not decode JSON from '{original_json_full_path}' for manifest entry {i}. Skipping.")
-                if original_json_filename in modified_json_data: # Should not be, but defensive
-                     del modified_json_data[original_json_filename]
-                continue
+                continue # Skip this entry
             except IOError:
                 print(f"Warning: Could not read '{original_json_full_path}' for manifest entry {i}. Skipping.")
-                if original_json_filename in modified_json_data:
-                     del modified_json_data[original_json_filename]
-                continue
+                continue # Skip this entry
         
         current_json_root = modified_json_data.get(original_json_filename)
-        if current_json_root is None:
+        if current_json_root is None: # Should not happen if loading logic above is correct
             print(f"Critical Error: JSON data for '{original_json_filename}' not found in memory map for entry {i}. Skipping.")
             continue
 
@@ -192,8 +189,9 @@ def insert_texts():
             print(f"Warning: Could not parse JSON path '{json_path_str}' for manifest entry {i}. Skipping.")
             continue
             
-        print(f"  Updating text for entry {i}: '{current_translated_text[:50]}...'")
-        if not set_value_at_path(current_json_root, path_list, current_translated_text):
+        item_preview = str(current_translated_item)
+        print(f"  Updating with item for entry {i}: '{item_preview[:70]}...'")
+        if not set_value_at_path(current_json_root, path_list, current_translated_item):
             print(f"Warning: Failed to set value for manifest entry {i} at path '{json_path_str}' in '{original_json_filename}'.")
 
     # Save all modified JSON data
@@ -218,10 +216,7 @@ def insert_texts():
         print(f"\nSuccessfully saved {saved_count} modified JSON file(s) to {TRADUCIDOS_DIR}.")
     elif modified_json_data:
         print("\nJSON data was processed, but no files were saved. Check for warnings above.")
-    else:
-        # Message for no data loaded/modified already printed
-        pass
 
 if __name__ == "__main__":
-    insert_texts()
+    insert_items() # Call renamed function
     print("\nScript finished.")
