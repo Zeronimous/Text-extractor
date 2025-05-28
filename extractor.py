@@ -125,8 +125,9 @@ def extract_texts():
             if extracted_texts_for_file:
                 txt_output_filename = os.path.join(TEXTOS_DIR, f"{original_filename_no_ext}.txt")
                 with open(txt_output_filename, 'w', encoding='utf-8') as txt_file:
+                    txt_file.write("code\ttext\n") # Add header
                     for i, text_content in enumerate(extracted_texts_for_file):
-                        txt_file.write(f"[linea{i+1}] {text_content}\n")
+                        txt_file.write(f"{i+1}\t{text_content}\n") # Change format
                 print(f"Extracted texts saved to {txt_output_filename}")
             else:
                 print(f"No texts found in {original_filepath}.")

@@ -39,9 +39,11 @@ The scripts expect the following folder structure in the root of the repository:
 
 3.  **Translate Text:**
     *   Open the `.txt` files located in the `Textos` folder.
-    *   Each line will be in the format: `[lineaX] Original Text` (e.g., `[linea1] Hello world!`).
-    *   Edit these files by replacing the original text with your translation, keeping the line number and bracketed format: `[lineaX] Translated Text` (e.g., `[linea1] ¡Hola mundo!`).
-    *   **Important for game codes:** If the original text contains special RPGMaker codes (like `\C[1]`, `\N[2]`, `\.`), make sure to preserve these codes exactly as they are in your translated string. For example, if the original is `[linea1] Press \C[2]OK\C[0] to continue.`, your translation might be `[linea1] Pulse \C[2]OK\C[0] para continuar.`. The scripts replace the entire string.
+    *   Each file will start with a header line: `code	text`.
+    *   Subsequent lines will be in the format: `X	Original Text` (e.g., `1	Hello world!`), where `X` is a numerical code and `	` represents a tab character.
+    *   Edit these files by replacing the original text with your translation, keeping the `code	text` structure: `X	Translated Text` (e.g., `1	¡Hola mundo!`).
+    *   **Do not remove or alter the header row.** The `inserter.py` script expects it.
+    *   **Important for game codes:** If the original text contains special RPGMaker codes (like `\C[1]`, `\N[2]`, `\.`), make sure to preserve these codes exactly as they are in your translated string. For example, if the original is `1	Press \C[2]OK\C[0] to continue.`, your translation might be `1	Pulse \C[2]OK\C[0] para continuar.`. The scripts replace the entire string.
 
 4.  **Insert Translations:**
     *   Once you have translated the `.txt` files, run the `inserter.py` script from the root of the repository:
