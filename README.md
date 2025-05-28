@@ -1,11 +1,23 @@
-# RPGMaker JSON Translation Tools
+# RPGMaker Event Text Translation Tools (TSV Workflow)
 
-This repository contains two Python scripts to help with translating text in RPGMaker MV/MZ JSON files, supporting a mix of direct string and in-object translations.
+This repository contains Python scripts designed to extract and re-insert text specifically from **event commands** within `MapXXX.json` and `CommonEvents.json` files from RPGMaker MV/MZ projects. This version uses a per-file Tab-Separated Values (TSV) workflow for translation.
 
-## Features
+## Features & Scope
 
-*   `extractor.py`: Extracts translatable items from your game data files into a single JSON file (`extracted_text_objects.json`). These items can be either complete JSON objects (like game event commands) or simple JSON strings (like item names). It also creates a manifest file (`extraction_manifest.json`) to track the origin and type of each item.
-*   `inserter.py`: Inserts translated items from the modified `extracted_text_objects.json` file back into new JSON game data files, using the manifest to ensure correct placement and handling based on item type.
+*   **Targeted Extraction:** `extractor.py` processes `MapXXX.json` and `CommonEvents.json` files found in the `Originales/` directory.
+*   **Event Command Focus:** It extracts text *only* from specific parameters of predefined event commands known to contain displayable game text (e.g., Show Text, Show Choices, Scrolling Text, Actor Name/Nickname changes via event commands).
+*   **TSV for Translation:** Extracted texts are saved into `.tsv` files (one for each processed map or `CommonEvents.json`), which are suitable for editing in spreadsheet software or text editors.
+*   **Manifest for Mapping:** A corresponding `_manifest.json` file is generated for each `.tsv`, containing precise JSON path information used by `inserter.py` to place translated text back.
+*   **NOT Processed by This Version:**
+    *   Item names, descriptions, notes.
+    *   Skill names, descriptions, messages.
+    *   Actor names/nicknames/profiles (unless changed by an event command targeted by the script).
+    *   Class names, descriptions.
+    *   Enemy names.
+    *   State names, messages.
+    *   System strings (game title, terms, menu commands, etc.) from `System.json`.
+    *   Map display names (from `MapInfos.json`).
+    *   Any text outside of the specified event commands in Map/CommonEvent files.
 
 ## Requirements
 
@@ -13,93 +25,65 @@ This repository contains two Python scripts to help with translating text in RPG
 
 ## Folder Structure
 
-The scripts expect the following folder structure in the root of the repository:
+The scripts expect the following folder structure:
 
-*   `Originales/`: Place your original game's `.json` files (e.g., `Map001.json`, `Items.json`, `CommonEvents.json`) here.
+*   `Originales/`: Place your original `MapXXX.json` and `CommonEvents.json` files here.
 *   `Textos/`:
-    *   This folder will be automatically created by `extractor.py`. It will contain:
-        *   `extracted_text_objects.json`: A single JSON file containing an array of items to be translated. **These items can be either complete JSON objects (like game event commands) or simple JSON strings (like item names or descriptions).** This is the primary file you will edit.
-        *   `extraction_manifest.json`: A JSON file used by the scripts to map each item in `extracted_text_objects.json` (by its array index) back to its original location (file and path within the file). It also contains a `type` field (e.g., `event_command_object` or `string_value`) for each entry, indicating how the corresponding item in `extracted_text_objects.json` should be treated. **Do not edit this manifest file manually unless you know what you are doing.**
+    *   This folder will be automatically created by `extractor.py`.
+    *   For each `MapXXX.json` or `CommonEvents.json` processed, two files will be generated:
+        *   **`<basename>.tsv`** (e.g., `Map001.tsv`, `CommonEvents.tsv`): This is the file you will edit to add translations. It's a tab-separated values file where each row represents a piece of extracted text.
+            *   **Columns for Map files (`MapXXX.tsv`):**
+                1.  `event_id`: The ID of the event on the map.
+                2.  `page_id`: The 1-based index of the event page.
+                3.  `command_idx`: The 0-based index of the command within the event page's `list`.
+                4.  `code`: The numerical event command code.
+                5.  `original_text`: The extracted text to be translated.
+            *   **Columns for CommonEvents files (`CommonEvents.tsv`):**
+                1.  `common_event_id`: The ID of the common event.
+                2.  `command_idx`: The 0-based index of the command within the common event's `list`.
+                3.  `code`: The numerical event command code.
+                4.  `original_text`: The extracted text to be translated.
+        *   **`<basename>_manifest.json`** (e.g., `Map001_manifest.json`, `CommonEvents_manifest.json`): This JSON file is for internal use by the scripts. It contains a list of entries, each corresponding to a row in the `.tsv` file, mapping it to the specific JSON path in the original file. **Do not edit this file manually.**
 *   `Traducidos/`:
     *   This folder will be automatically created by `inserter.py`.
-    *   It will contain the new `.json` files with the translated text, mirroring the structure of your `Originales/` directory.
+    *   It will contain the new `.json` files (e.g., `Map001.json`) with the translated event texts.
 
 ## Workflow
 
 1.  **Prepare Original Files:**
     *   Create the `Originales/` folder if it doesn't exist.
-    *   Copy all the `.json` files you want to translate from your RPGMaker project's `data` folder (or relevant subfolders) into the `Originales/` folder.
+    *   Copy the `MapXXX.json` and/or `CommonEvents.json` files you wish to translate from your RPGMaker project's `data` folder into the `Originales/` folder.
 
-2.  **Extract Text Objects and Strings:**
+2.  **Extract Event Texts:**
     *   Run the `extractor.py` script from the root of the repository:
         ```bash
         python extractor.py
         ```
-    *   This will populate the `Textos/` folder with two files:
-        *   `extracted_text_objects.json`: Contains a JSON array of all translatable items (objects or strings).
-        *   `extraction_manifest.json`: The manifest file linking these items to their origins and specifying their type.
+    *   This will scan `Originales/`, process any `MapXXX.json` and `CommonEvents.json` files, and generate the corresponding `.tsv` and `_manifest.json` file pairs in the `Textos/` folder.
 
-3.  **Translate Text Items:**
-    *   Open `Textos/extracted_text_objects.json` with a text editor that handles JSON well (e.g., VS Code, Sublime Text, Notepad++) or a specialized JSON editor.
-    *   This file contains a JSON array of mixed items. Each item is either a complete JSON object (usually an event command from the game) or a simple JSON string (like a name or description).
-
-    **How to Translate:**
-
-    *   **If the item is a JSON string (e.g., a name):**
-        This is common for item names, descriptions, skill names, etc. The manifest type for these is typically `string_value`.
-        ```json
-        // Example item in extracted_text_objects.json:
-        "Potion" 
-        // Translate it directly by replacing the string:
-        "Poción"
-        ```
-
-    *   **If the item is a JSON object (e.g., an event command):**
-        This is common for dialog, choices, scrolling text, etc. The manifest type for these is typically `event_command_object` or similar.
-        ```json
-        // Example item in extracted_text_objects.json:
-        {
-            "code": 401,
-            "indent": 0,
-            "parameters": [
-                "Hello, adventurer!"
-            ]
-        }
-        // You need to find the text within this object and translate it IN PLACE:
-        {
-            "code": 401,
-            "indent": 0,
-            "parameters": [
-                "¡Hola, aventurero!"
-            ]
-        }
-        ```
-        Common places for text in event commands are within the `parameters` array:
-        *   **Show Text (code 401):** Text is typically `parameters[0]`.
-        *   **Show Text (code 101, with face/speaker):** Text can be in `parameters[4]` or `parameters[5]` depending on RPGMaker version and if a speaker name is used. You'll need to identify the correct string.
-        *   **Show Choices (code 102):** `parameters[0]` is an array of choice strings, e.g., `["Yes", "No"]`. Translate each string in that inner array.
-        *   **Show Scrolling Text (code 105):** Text is typically `parameters[0]`.
-        *   Other commands like changing actor names (code 320), nicknames (code 324), or profiles (code 325) will have text in `parameters[1]`.
-
-        **Crucially, when editing an object, only change the text values. Do NOT alter the object's structure (keys like `code`, `indent`), numerical values, boolean flags, or the order of parameters unless you are certain of the effect on the game engine.** Modifying the structure can easily lead to game errors.
-
-    **General Rules for Translation:**
-    *   You MUST preserve the order and number of items in the main `extracted_text_objects.json` array. Each item's position (index) is vital for placing the translation back correctly. Do not add, remove, or reorder items within the main array.
-    *   If an original string (whether standalone or within an object) contains special RPGMaker codes (like `\C[1]`, `\N[2]`, `\.`), preserve these codes in your translation.
-    *   The `extraction_manifest.json` contains a `type` field for each entry, which helps the `inserter.py` script understand whether to replace a whole object or just a string value at a specific path. You don't typically need to interact with the manifest, but it explains why `extracted_text_objects.json` has mixed types and how the inserter works.
+3.  **Translate Texts in TSV Files:**
+    *   Open the `.tsv` files (e.g., `Map001.tsv`, `CommonEvents.tsv`) located in the `Textos/` folder using spreadsheet software (like LibreOffice Calc, Microsoft Excel, Google Sheets) or a text editor that handles TSV well.
+    *   Locate the **`original_text`** column. This column contains the text extracted from the game.
+    *   **Edit the content of the `original_text` column with your translations.**
+    *   **Crucial:**
+        *   Maintain the tab-separated structure of the file. Do not add or remove columns.
+        *   Do not change the order of rows.
+        *   Do not alter the content of other columns (like `event_id`, `code`, etc.).
+        *   If using spreadsheet software, ensure it saves back in TSV format (tab-delimited) with UTF-8 encoding if possible.
+    *   **Important for game codes:** If the original text in the `original_text` column contains special RPGMaker control codes (e.g., `\C[1]`, `\N[2]`, `\.`), make sure to preserve these codes exactly as they are within your translated string in that same cell.
 
 4.  **Insert Translations:**
-    *   Once you have translated the items in `Textos/extracted_text_objects.json`, run the `inserter.py` script from the root of the repository:
+    *   Once you have translated the `original_text` column in the `.tsv` files, run the `inserter.py` script from the root of the repository:
         ```bash
         python inserter.py
         ```
-    *   This will read your translated items from `Textos/extracted_text_objects.json` and use `Textos/extraction_manifest.json` to create new translated `.json` files in the `Traducidos/` folder.
+    *   This script will read each translated `.tsv` file in `Textos/`, use its corresponding `_manifest.json` to find the correct locations, and then create new, updated `.json` files (e.g., `Map001.json`) in the `Traducidos/` folder.
 
 5.  **Use Translated Files:**
     *   The `.json` files in the `Traducidos/` folder can now be used to replace the original files in your game project's `data` folder. **Always back up your original game data first!**
 
 ## Notes
 
-*   The scripts attempt to handle various text locations and structures within RPGMaker JSON files.
-*   The order of items in `extracted_text_objects.json` is deterministic: files in `Originales/` are processed alphabetically, and items within each file are extracted based on the script's traversal order.
-*   If you encounter any issues or have suggestions, please report them.
+*   The scripts are specifically tailored for event command texts in `MapXXX.json` and `CommonEvents.json`.
+*   The order of texts within each generated `.tsv` file is deterministic, based on event ID, page index, and command index.
+*   If you encounter any issues or have suggestions for improving the handling of event texts, please report them.
